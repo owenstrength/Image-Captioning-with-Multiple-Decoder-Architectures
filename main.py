@@ -117,7 +117,7 @@ class DecoderRNN(nn.Module):
 
 # Modified Dataset Class for COCO with subset sampling
 class CocoDataset(Dataset):
-    def __init__(self, coco_json, tokenizer, transform=None, img_dir='', subset_fraction=0.001):
+    def __init__(self, coco_json, tokenizer, transform=None, img_dir='', subset_fraction=0.01):
         self.coco = COCO(coco_json)
         all_image_ids = self.coco.getImgIds()
         
@@ -225,44 +225,63 @@ def visualize_sample(image_tensor, actual_caption, predicted_caption, epoch):
     plt.figtext(0.1, 0.02, f'Predicted: {predicted_caption}', wrap=True, fontsize=10)
     plt.show()
 
-def train_model(encoder, decoder, data_loader, tokenizer, num_epochs=5, device='cuda'):
+def train_model(encoder, decoder, train_loader, val_loader, tokenizer, num_epochs=5, device='cuda'):
     criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
     params = list(decoder.parameters()) + list(encoder.linear.parameters())
     optimizer = optim.AdamW(params, lr=5e-4, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
     
-    best_loss = float('inf')
+    best_val_loss = float('inf')
+    train_losses = []
+    val_losses = []
+    
+    def evaluate(data_loader):
+        encoder.eval()
+        decoder.eval()
+        total_loss = 0
+        
+        with torch.no_grad():
+            for images, captions in data_loader:
+                images = images.to(device)
+                captions = captions.to(device)
+                
+                features = encoder(images)
+                outputs = decoder(features, captions)
+                
+                targets = captions[:, 1:]  # Remove first token (CLS) from target
+                outputs = outputs[:, :targets.size(1), :]  # Match sequence length
+                
+                loss = criterion(outputs.reshape(-1, decoder.vocab_size), targets.reshape(-1))
+                total_loss += loss.item()
+                
+        return total_loss / len(data_loader)
     
     for epoch in range(num_epochs):
+        # Training phase
         encoder.train()
         decoder.train()
-        total_loss = 0
-        progress_bar = tqdm(data_loader, desc=f'Epoch {epoch + 1}/{num_epochs}')
+        total_train_loss = 0
+        progress_bar = tqdm(train_loader, desc=f'Epoch {epoch + 1}/{num_epochs}')
         
         for i, (images, captions) in enumerate(progress_bar):
             images = images.to(device)
             captions = captions.to(device)
             
-            # Zero gradients
             optimizer.zero_grad()
             
-            # Forward pass
             features = encoder(images)
-            
             outputs = decoder(features, captions)
             
-            # Calculate loss
-            targets = captions[:, 1:]  # Remove first token (CLS) from target
-            outputs = outputs[:, :targets.size(1), :]  # Match sequence length
+            targets = captions[:, 1:]
+            outputs = outputs[:, :targets.size(1), :]
             loss = criterion(outputs.reshape(-1, decoder.vocab_size), targets.reshape(-1))
             
-            # Backward pass and optimize
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(params, max_norm=1.0)  # Fixed clipping function
+            torch.nn.utils.clip_grad_norm_(params, max_norm=1.0)
             optimizer.step()
             
-            total_loss += loss.item()
-            progress_bar.set_postfix(loss=loss.item())
+            total_train_loss += loss.item()
+            progress_bar.set_postfix(train_loss=loss.item())
             
             # Print example prediction every 100 batches
             if i % 100 == 0:
@@ -274,34 +293,54 @@ def train_model(encoder, decoder, data_loader, tokenizer, num_epochs=5, device='
                     print(f"Actual: {actual_caption}")
                     print(f"Predicted: {predicted_caption}")
         
+        # Calculate average training loss for the epoch
+        avg_train_loss = total_train_loss / len(train_loader)
+        train_losses.append(avg_train_loss)
+        
+        # Validation phase
+        avg_val_loss = evaluate(val_loader)
+        val_losses.append(avg_val_loss)
+        
         scheduler.step()
         
-        avg_loss = total_loss / len(data_loader)
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Average Loss: {avg_loss:.4f}')
+        print(f'Epoch [{epoch + 1}/{num_epochs}]')
+        print(f'Training Loss: {avg_train_loss:.4f}')
+        print(f'Validation Loss: {avg_val_loss:.4f}')
         
-        # Save checkpoint for best loss
-        if avg_loss < best_loss:
-            best_loss = avg_loss
+        # Save checkpoint if validation loss improved
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
             checkpoint = {
                 'encoder_state_dict': encoder.state_dict(),
                 'decoder_state_dict': decoder.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'epoch': epoch,
-                'loss': avg_loss
+                'train_loss': avg_train_loss,
+                'val_loss': avg_val_loss,
+                'train_losses': train_losses,
+                'val_losses': val_losses
             }
             torch.save(checkpoint, 'checkpoints/best_checkpoint.pth')
             print("Saved best checkpoint!")
-
+    
+    return train_losses, val_losses
 
 
 if __name__ == '__main__':
     # Setup
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('mps')
+    print(f"Using device: {device}")
     
     # Load data
-    coco_json = 'coco_dataset/annotations/captions_train2017.json'
-    img_dir = 'coco_dataset/train2017'
-    data_loader, tokenizer = load_data(coco_json, img_dir, subset_fraction=0.001)
+    train_coco_json = 'coco_dataset/annotations/captions_train2017.json'
+    train_img_dir = 'coco_dataset/train2017'
+    val_coco_json = 'coco_dataset/annotations/captions_val2017.json'
+    val_img_dir = 'coco_dataset/val2017'
+    train_loader, tokenizer = load_data(train_coco_json, train_img_dir, subset_fraction=0.01)
+    val_loader, _ = load_data(val_coco_json, val_img_dir, subset_fraction=0.001)
+
+
+    
     
     # Initialize models
     embed_size = 256
@@ -312,4 +351,4 @@ if __name__ == '__main__':
     decoder = DecoderRNN(embed_size, hidden_size, vocab_size, num_layers=2).to(device)
     
     # Train the model
-    train_model(encoder, decoder, data_loader, tokenizer, num_epochs=1000, device=device)
+    train_model(encoder, decoder, train_loader, val_loader, tokenizer, num_epochs=1000, device=device)
