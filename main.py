@@ -12,64 +12,8 @@ import torch.optim as optim
 import random
 import math
 import torch.utils.data as data
-
-class EncoderCNN(nn.Module):
-    def __init__(self, embed_size):
-        super(EncoderCNN, self).__init__()
-        resnet = models.resnet50(pretrained=True)
-        # Disable learning for all parameters
-        for param in resnet.parameters():
-            param.requires_grad_(False)
-            
-        modules = list(resnet.children())[:-1]
-        self.resnet = nn.Sequential(*modules)
-        self.embed = nn.Linear(resnet.fc.in_features, embed_size)
-
-    def forward(self, images):
-        features = self.resnet(images)
-        features = features.view(features.size(0), -1)
-        features = self.embed(features)
-        return features
-
-class DecoderRNN(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
-        super(DecoderRNN, self).__init__()
-        
-        self.hidden_dim = hidden_size
-        self.embed = nn.Embedding(vocab_size, embed_size)
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
-        self.linear = nn.Linear(hidden_size, vocab_size)
-        self.hidden = (torch.zeros(1, 1, hidden_size), torch.zeros(1, 1, hidden_size))
-
-    def forward(self, features, captions):
-        # Remove end token and embed captions
-        cap_embedding = self.embed(captions[:, :-1])
-        
-        # Add image features as first token
-        embeddings = torch.cat((features.unsqueeze(1), cap_embedding), dim=1)
-        
-        # LSTM forward pass
-        lstm_out, self.hidden = self.lstm(embeddings)
-        outputs = self.linear(lstm_out)
-        
-        return outputs
-
-    def sample(self, inputs, states=None, max_len=20):
-        res = []
-        
-        for i in range(max_len):
-            lstm_out, states = self.lstm(inputs, states)
-            outputs = self.linear(lstm_out.squeeze(1))
-            _, predicted_idx = outputs.max(1)
-            res.append(predicted_idx.item())
-            
-            if predicted_idx == 1:  # End token
-                break
-                
-            inputs = self.embed(predicted_idx)
-            inputs = inputs.unsqueeze(1)
-            
-        return res
+from models.EncoderCNN import EncoderCNN
+from models.DecoderRNN import DecoderRNN
 
 class CocoDataset(Dataset):
     def __init__(self, coco_json, tokenizer, transform=None, img_dir='', subset_fraction=0.001):
