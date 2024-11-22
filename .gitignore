@@ -1,2 +1,3 @@
 coco_dataset/*
 checkpoints/*
+nohup.out
