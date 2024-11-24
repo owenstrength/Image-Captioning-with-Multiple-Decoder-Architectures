@@ -38,6 +38,9 @@ def generate_caption(encoder, decoder, image_tensor, tokenizer, device):
     return caption
 
 def visualize_prediction(image, actual_caption, predicted_caption):
+    """
+    Save the image and captions in a matplotlib plot
+    """
     # Create the figure and display
     plt.figure(figsize=(12, 8))
     plt.imshow(image)
@@ -55,6 +58,9 @@ def visualize_prediction(image, actual_caption, predicted_caption):
     print(f"Saved prediction to: {filename}")
 
 def test_model(encoder_weights, decoder_weights, test_coco_json, test_img_dir, num_test_samples=5):
+    """
+    Generate sample predictions and visualize them
+    """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Initialize models
@@ -94,6 +100,9 @@ def test_model(encoder_weights, decoder_weights, test_coco_json, test_img_dir, n
         visualize_prediction(image, actual_caption, predicted_caption)
 
 def calculate_metrics(encoder_weights, decoder_weights, test_coco_json, test_img_dir, num_test_samples=100):
+    """
+    Calculate BLEU scores on a sample of test images
+    """
     try:
         nltk.download('punkt')
     except:
@@ -184,7 +193,6 @@ def calculate_metrics(encoder_weights, decoder_weights, test_coco_json, test_img
     print(f"Average BLEU-4 score: {avg_bleu_4:.4f}")
 
 if __name__ == '__main__':
-    # Update paths to your pickle files
     encoder_path = 'checkpoints/encoder-50.pkl'  # Path to encoder weights
     decoder_path = 'checkpoints/decoder-50.pkl'  # Path to decoder weights
     test_coco_json = 'coco_dataset/annotations/captions_val2017.json'
