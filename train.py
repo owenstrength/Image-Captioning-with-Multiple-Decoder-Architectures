@@ -13,7 +13,7 @@ import random
 import math
 import torch.utils.data as data
 from models.EncoderCNN import EncoderCNN
-from models.DecoderRNN import DecoderRNN
+from models.DecoderModels import DecoderRNN, DecoderGRU, DecoderLSTM, DecoderLSTMAttention
 
 class CocoDataset(Dataset):
     def __init__(self, coco_json, tokenizer, transform=None, img_dir='', subset_fraction=0.001):
@@ -62,7 +62,7 @@ class CocoDataset(Dataset):
                                       return_tensors='pt', truncation=True)
         return image, caption_tokens['input_ids'].squeeze(0)
 
-def train_model(encoder, decoder, data_loader, tokenizer, num_epochs=5, device='cuda', print_every=20):
+def train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, device='cuda', print_every=20,):
     criterion = nn.CrossEntropyLoss().cuda()
     params = list(decoder.parameters()) + list(encoder.embed.parameters())
     optimizer = optim.Adam(params, lr=0.001)
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     img_dir = 'coco_dataset/train2017'
     
     # Create dataset
-    dataset = CocoDataset(coco_json, tokenizer, transform, img_dir, subset_fraction=0.1)
+    dataset = CocoDataset(coco_json, tokenizer, transform, img_dir, subset_fraction=1.0) # use all data
     
     # Create data loader with custom batch sampler
     batch_size = 128
@@ -164,7 +164,27 @@ if __name__ == '__main__':
     vocab_size = tokenizer.vocab_size
     
     encoder = EncoderCNN(embed_size).to(device)
+
+    # RNN
     decoder = DecoderRNN(embed_size, hidden_size, vocab_size).to(device)
-    
-    # Train
-    train_model(encoder, decoder, data_loader, tokenizer, num_epochs=50, device=device)
+    name = 'rnn'
+
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=10, device=device)
+
+    # GRU
+    decoder = DecoderGRU(embed_size, hidden_size, vocab_size).to(device)
+    name = 'gru'
+
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=10, device=device)
+
+    # LSTM
+    decoder = DecoderLSTM(embed_size, hidden_size, vocab_size).to(device)
+    name = 'lstm'
+
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=10, device=device)
+
+    # LSTM with Attention
+    decoder = DecoderLSTMAttention(embed_size, hidden_size, vocab_size).to(device)
+    name = 'lstm_attention'
+
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=10, device=device)
