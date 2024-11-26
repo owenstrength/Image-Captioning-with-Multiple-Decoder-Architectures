@@ -212,8 +212,8 @@ if __name__ == '__main__':
         print(f"Using encoder: {encoder_path}")
         print(f"Using decoder: {decoder_path}")
 
-        encoder_weights = torch.load(encoder_path)
-        decoder_weights = torch.load(decoder_path)
+        encoder_weights = torch.load(encoder_path, map_location=device)
+        decoder_weights = torch.load(decoder_path, map_location=device)
         
         encoder = EncoderCNN(embed_size).to(device)
             
