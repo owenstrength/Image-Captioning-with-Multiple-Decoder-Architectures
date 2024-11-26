@@ -66,7 +66,6 @@ def train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, de
     criterion = nn.CrossEntropyLoss().cuda()
     params = list(decoder.parameters()) + list(encoder.embed.parameters())
     optimizer = optim.Adam(params, lr=0.001)
-    #scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
     
     total_step = math.ceil(len(data_loader.dataset) / data_loader.batch_sampler.batch_size)
     
@@ -77,7 +76,6 @@ def train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, de
         progress_bar = tqdm(range(1, total_step + 1), desc=f'Epoch {epoch}/{num_epochs}')
         
         for i_step in progress_bar:
-            # Get batch with sampled indices
             indices = data_loader.dataset.get_train_indices()
             new_sampler = data.sampler.SubsetRandomSampler(indices=indices)
             data_loader.batch_sampler.sampler = new_sampler
@@ -87,18 +85,14 @@ def train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, de
             images = images.to(device)
             captions = captions.to(device)
             
-            # Zero gradients
             decoder.zero_grad()
             encoder.zero_grad()
             
-            # Forward pass
             features = encoder(images)
             outputs = decoder(features, captions)
             
-            # Calculate loss
             loss = criterion(outputs.view(-1, len(tokenizer)), captions.view(-1))
-            
-            # Backward pass
+
             loss.backward()
             optimizer.step()
             
@@ -117,19 +111,14 @@ def train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, de
 
         avg_loss = total_loss / total_step
         print(f'Epoch [{epoch}/{num_epochs}], Average Loss: {avg_loss:.4f}')
-
-        #scheduler.step()
         
-        # Save checkpoint
         if epoch % 1 == 0:
             torch.save(decoder.state_dict(), f'checkpoints/decoder-{name}-{epoch}.pkl')
             torch.save(encoder.state_dict(), f'checkpoints/encoder-{name}-{epoch}.pkl')
 
 if __name__ == '__main__':
-    # Setup
     device = torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu')
     
-    # Transform
     transform = transforms.Compose([
         transforms.Resize(256),
         transforms.RandomCrop(224),
@@ -139,17 +128,13 @@ if __name__ == '__main__':
                            (0.229, 0.224, 0.225))
     ])
     
-    # Initialize tokenizer
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     
-    # Dataset paths
     coco_json = 'coco_dataset/annotations/captions_train2017.json'
     img_dir = 'coco_dataset/train2017'
     
-    # Create dataset
     dataset = CocoDataset(coco_json, tokenizer, transform, img_dir, subset_fraction=1.0) # use all data
     
-    # Create data loader with custom batch sampler
     batch_size = 128
     batch_sampler = data.BatchSampler(
         data.SequentialSampler(dataset),
@@ -158,33 +143,34 @@ if __name__ == '__main__':
     )
     data_loader = DataLoader(dataset, batch_sampler=batch_sampler)
     
-    # Initialize models
     embed_size = 256
     hidden_size = 512
     vocab_size = tokenizer.vocab_size
     
     encoder = EncoderCNN(embed_size).to(device)
 
+    num_epochs = 5
+
     # RNN
     decoder = DecoderRNN(embed_size, hidden_size, vocab_size).to(device)
     name = 'rnn'
 
-    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, device=device)
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=num_epochs, device=device)
 
     # GRU
     decoder = DecoderGRU(embed_size, hidden_size, vocab_size).to(device)
     name = 'gru'
 
-    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, device=device)
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=num_epochs, device=device)
 
     # LSTM
     decoder = DecoderLSTM(embed_size, hidden_size, vocab_size).to(device)
     name = 'lstm'
 
-    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, device=device)
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=num_epochs, device=device)
 
     # LSTM with Attention
     decoder = DecoderLSTMAttention(embed_size, hidden_size, vocab_size).to(device)
     name = 'lstm_attention'
 
-    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, device=device)
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=num_epochs, device=device)
