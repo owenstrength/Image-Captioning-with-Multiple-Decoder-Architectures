@@ -122,8 +122,8 @@ def train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, de
         
         # Save checkpoint
         if epoch % 1 == 0:
-            torch.save(decoder.state_dict(), f'checkpoints/decoder-{epoch}.pkl')
-            torch.save(encoder.state_dict(), f'checkpoints/encoder-{epoch}.pkl')
+            torch.save(decoder.state_dict(), f'checkpoints/decoder-{name}-{epoch}.pkl')
+            torch.save(encoder.state_dict(), f'checkpoints/encoder-{name}-{epoch}.pkl')
 
 if __name__ == '__main__':
     # Setup
@@ -169,22 +169,22 @@ if __name__ == '__main__':
     decoder = DecoderRNN(embed_size, hidden_size, vocab_size).to(device)
     name = 'rnn'
 
-    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=10, device=device)
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, device=device)
 
     # GRU
     decoder = DecoderGRU(embed_size, hidden_size, vocab_size).to(device)
     name = 'gru'
 
-    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=10, device=device)
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, device=device)
 
     # LSTM
     decoder = DecoderLSTM(embed_size, hidden_size, vocab_size).to(device)
     name = 'lstm'
 
-    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=10, device=device)
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, device=device)
 
     # LSTM with Attention
     decoder = DecoderLSTMAttention(embed_size, hidden_size, vocab_size).to(device)
     name = 'lstm_attention'
 
-    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=10, device=device)
+    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=5, device=device)
