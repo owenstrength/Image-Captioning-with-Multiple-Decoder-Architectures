@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 from torchvision import models
 from pycocotools.coco import COCO
 from pycocoevalcap.cider.cider import Cider
+from pycocoevalcap.rouge.rouge import Rouge
 from PIL import Image
 from tqdm import tqdm
 from transformers import BertTokenizer
@@ -11,7 +12,7 @@ import torch.optim as optim
 import random
 import matplotlib.pyplot as plt
 import numpy as np
-from nltk.translate.bleu_score import sentence_bleu
+from nltk.translate.bleu_score import corpus_bleu
 from nltk.translate.meteor_score import meteor_score
 from nltk.tokenize import word_tokenize
 import nltk
@@ -60,11 +61,39 @@ def visualize_prediction(image, name, actual_caption, predicted_caption):
     
     print(f"Saved prediction to: {filename}")
 
-def calculate_metrics(encoder, decoder, name, tokenizer, test_coco_json, test_img_dir, num_test_samples=100):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+def calculate_meteor_score(references, hypothesis):
+    """
+    Calculate METEOR score for a single prediction
+    """
+    return meteor_score(references, hypothesis)
+
+def prepare_for_cider(references, hypotheses):
+    """
+    Prepare data in the format required by CIDEr scorer
+    """
+    refs = {}
+    hyps = {}
+    for i, (ref, hyp) in enumerate(zip(references, hypotheses)):
+        refs[i] = [' '.join(r) for r in ref]
+        hyps[i] = [' '.join(hyp)]
+    return refs, hyps
+def calculate_metrics(encoder_weights, decoder_weights, test_coco_json, test_img_dir, num_test_samples=100):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
+    
+    # Model initialization
+    embed_size = 256
+    hidden_size = 512
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    vocab_size = tokenizer.vocab_size
+    
+    encoder = EncoderCNN(embed_size).to(device)
+    decoder = DecoderRNN(embed_size, hidden_size, vocab_size).to(device)
+        
+    encoder.load_state_dict(encoder_weights)
+    decoder.load_state_dict(decoder_weights)
     
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),  # Changed to match training transform
+        transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                            std=[0.229, 0.224, 0.225])
@@ -74,77 +103,84 @@ def calculate_metrics(encoder, decoder, name, tokenizer, test_coco_json, test_im
     test_image_ids = test_coco.getImgIds()
     sample_ids = random.sample(test_image_ids, num_test_samples)
     
-    bleu_scores = []
-    bleu_1_scores = []
-    bleu_2_scores = []
-    bleu_3_scores = []
-    bleu_4_scores = []
-    CIDEr_scores = []
-    METEOR_scores = []
+    # Initialize scorers
+    cider_scorer = Cider()
+    rouge_scorer = Rouge()
     
-    for img_id in tqdm(sample_ids, desc="Calculating metrics"):
+    # Lists to store all references and hypotheses
+    all_references = []
+    all_hypotheses = []
+    meteor_scores = []
+    
+    for img_id in tqdm(sample_ids, desc="Processing images"):
         try:
+            # Process image
             img_info = test_coco.imgs[img_id]
             image_path = f"{test_img_dir}/{img_info['file_name']}"
             image = Image.open(image_path).convert('RGB')
             image_tensor = transform(image)
             
-            # Get all captions for this image as references
+            # Get reference captions
             ann_ids = test_coco.getAnnIds(imgIds=img_id)
             anns = test_coco.loadAnns(ann_ids)
-            reference_captions = [ann['caption'].lower() for ann in anns]
-            references = [word_tokenize(cap) for cap in reference_captions]
+            reference_captions = [word_tokenize(ann['caption'].lower()) for ann in anns]
             
-            # Generate caption
+            # Generate prediction
             predicted_caption = generate_caption(encoder, decoder, image_tensor, tokenizer, device)
-            candidate = word_tokenize(predicted_caption.lower())
+            hypothesis = word_tokenize(predicted_caption.lower())
             
-            # Calculate BLEU scores with different n-grams
-            bleu_1 = sentence_bleu(references, candidate, weights=(1, 0, 0, 0))
-            bleu_2 = sentence_bleu(references, candidate, weights=(0.5, 0.5, 0, 0))
-            bleu_3 = sentence_bleu(references, candidate, weights=(0.33, 0.33, 0.33, 0))
-            bleu_4 = sentence_bleu(references, candidate, weights=(0.25, 0.25, 0.25, 0.25))
-            CIDEr = Cider().compute_score({img_id: [' '.join(reference_captions)]}, {img_id: [' '.join(predicted_caption)]})[0]
-            meteor = meteor_score(references, candidate)
+            # Calculate METEOR score for this sample
+            meteor_scores.append(calculate_meteor_score(reference_captions, hypothesis))
             
-            bleu_1_scores.append(bleu_1)
-            bleu_2_scores.append(bleu_2)
-            bleu_3_scores.append(bleu_3)
-            bleu_4_scores.append(bleu_4)
-            CIDEr_scores.append(CIDEr)
-            METEOR_scores.append(meteor)
+            # Add to corpus collections
+            all_references.append(reference_captions)
+            all_hypotheses.append(hypothesis)
             
-            # Use BLEU-4 as the main score
-            bleu_scores.append(bleu_4)
-            
-            # Print some examples
-            if len(bleu_scores) % 100 == 0:
+            # Print examples occasionally
+            if len(all_hypotheses) % 10 == 0:
                 print("\nExample caption:")
                 print(f"Predicted: {predicted_caption}")
-                print(f"Reference: {reference_captions[0]}")
-                print(f"BLEU-4: {bleu_4:.4f}")
-                print(f"CIDEr: {CIDEr}")
-                print(f"METEOR: {meteor:.4f}")
-                visualize_prediction(image, name, reference_captions[0], predicted_caption)
+                print(f"Reference: {' '.join(reference_captions[0])}")
+                visualize_prediction(image, ' '.join(reference_captions[0]), predicted_caption)
                 
         except Exception as e:
             print(f"Error processing image {img_id}: {str(e)}")
             continue
 
-    avg_bleu_1 = sum(bleu_1_scores) / len(bleu_1_scores)
-    avg_bleu_2 = sum(bleu_2_scores) / len(bleu_2_scores)
-    avg_bleu_3 = sum(bleu_3_scores) / len(bleu_3_scores)
-    avg_bleu_4 = sum(bleu_4_scores) / len(bleu_4_scores)
-    avg_CIDEr = sum(CIDEr_scores) / len(CIDEr_scores)
-    avg_METEOR = sum(METEOR_scores) / len(METEOR_scores)
+    # Calculate BLEU scores
+    bleu_1 = corpus_bleu(all_references, all_hypotheses, weights=(1.0, 0, 0, 0))
+    bleu_2 = corpus_bleu(all_references, all_hypotheses, weights=(0.5, 0.5, 0, 0))
+    bleu_3 = corpus_bleu(all_references, all_hypotheses, weights=(0.33, 0.33, 0.33, 0))
+    bleu_4 = corpus_bleu(all_references, all_hypotheses, weights=(0.25, 0.25, 0.25, 0.25))
     
-    print(f"\nMetrics on {len(bleu_scores)} test samples for {name}:")
-    print(f"Average BLEU-1 score: {avg_bleu_1:.4f}")
-    print(f"Average BLEU-2 score: {avg_bleu_2:.4f}")
-    print(f"Average BLEU-3 score: {avg_bleu_3:.4f}")
-    print(f"Average BLEU-4 score: {avg_bleu_4:.4f}")
-    print(f"Average CIDEr score: {avg_CIDEr:.4f}")
-    print(f"Average METEOR score: {avg_METEOR:.4f}")
+    # Calculate average METEOR score
+    meteor_score_avg = np.mean(meteor_scores)
+    
+    # Calculate CIDEr and ROUGE scores
+    refs, hyps = prepare_for_cider(all_references, all_hypotheses)
+    cider_score, _ = cider_scorer.compute_score(refs, hyps)
+    rouge_score, _ = rouge_scorer.compute_score(refs, hyps)
+    
+    # Print all metrics
+    print(f"\nEvaluation metrics on {len(all_hypotheses)} test samples:")
+    print(f"BLEU-1 score: {bleu_1:.4f}")
+    print(f"BLEU-2 score: {bleu_2:.4f}")
+    print(f"BLEU-3 score: {bleu_3:.4f}")
+    print(f"BLEU-4 score: {bleu_4:.4f}")
+    print(f"METEOR score: {meteor_score_avg:.4f}")
+    print(f"CIDEr score: {cider_score:.4f}")
+    print(f"ROUGE score: {rouge_score:.4f}")
+
+    return {
+        'bleu_1': bleu_1,
+        'bleu_2': bleu_2,
+        'bleu_3': bleu_3,
+        'bleu_4': bleu_4,
+        'meteor': meteor_score_avg,
+        'cider': cider_score,
+        'rouge': rouge_score,
+        'num_samples': len(all_hypotheses)
+    }
 
 if __name__ == '__main__':
     encoder_path = 'checkpoints/encoder-50.pkl'  # Path to encoder weights
@@ -158,7 +194,7 @@ if __name__ == '__main__':
     except:
         pass
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
 
     embed_size = 256
     hidden_size = 512
