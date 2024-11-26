@@ -7,7 +7,9 @@ class DecoderRNN(nn.Module):
         
         self.hidden_dim = hidden_size
         self.embed = nn.Embedding(vocab_size, embed_size)
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+        # Test a GRU instead of LSTM
+        self.lstm = nn.GRU(embed_size, hidden_size, num_layers, batch_first=True)
+        #self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
         self.linear = nn.Linear(hidden_size, vocab_size)
         self.hidden = (torch.zeros(1, 1, hidden_size), torch.zeros(1, 1, hidden_size))
 

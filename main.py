@@ -17,19 +17,23 @@ from models.DecoderRNN import DecoderRNN
 from coco_dataset import CocoDataset
 
 
-def train_model(encoder, decoder, data_loader, tokenizer, num_epochs=5, device='cuda', print_every=20):
+def train_model(encoder, decoder, data_loader, tokenizer, num_epochs=5, device='mps', print_every=20, starting_epoch=1):
     criterion = nn.CrossEntropyLoss().cuda()
     params = list(decoder.parameters()) + list(encoder.embed.parameters())
     optimizer = optim.Adam(params, lr=0.001)
     #scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
     
     total_step = math.ceil(len(data_loader.dataset) / data_loader.batch_sampler.batch_size)
+    end_epoch = starting_epoch + num_epochs
+
+    print(f"Training for {num_epochs} epochs")
+    print(f"end epoch: {end_epoch}")
     
-    for epoch in range(1, num_epochs + 1):
+    for epoch in range(starting_epoch + 1, end_epoch + 1):
         encoder.train()
         decoder.train()
         total_loss = 0
-        progress_bar = tqdm(range(1, total_step + 1), desc=f'Epoch {epoch}/{num_epochs}')
+        progress_bar = tqdm(range(1, total_step + 1), desc=f'Epoch {epoch}/{end_epoch}', position=1)
         
         for i_step in progress_bar:
             # Get batch with sampled indices
@@ -83,7 +87,7 @@ def train_model(encoder, decoder, data_loader, tokenizer, num_epochs=5, device='
 if __name__ == '__main__':
     # Setup
     device = torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu')
-    
+    print(f"Using device: {device}")
     # Transform
     transform = transforms.Compose([
         transforms.Resize(256),
@@ -102,7 +106,7 @@ if __name__ == '__main__':
     img_dir = 'coco_dataset/train2017'
     
     # Create dataset
-    dataset = CocoDataset(coco_json, tokenizer, transform, img_dir, subset_fraction=0.1)
+    dataset = CocoDataset(coco_json, tokenizer, transform, img_dir, subset_fraction=1)
     
     # Create data loader with custom batch sampler
     batch_size = 128
@@ -120,6 +124,13 @@ if __name__ == '__main__':
     
     encoder = EncoderCNN(embed_size).to(device)
     decoder = DecoderRNN(embed_size, hidden_size, vocab_size).to(device)
+
+    # Specify whether to continue training from a checkpoint
+    continue_training = True
+    starting_epoch = 10
+    if continue_training:
+        encoder.load_state_dict(torch.load(f'checkpoints/GRU/encoder-{starting_epoch}.pkl'))
+        decoder.load_state_dict(torch.load(f'checkpoints/GRU/decoder-{starting_epoch}.pkl'))
     
     # Train
-    train_model(encoder, decoder, data_loader, tokenizer, num_epochs=50, device=device)
+    train_model(encoder, decoder, data_loader, tokenizer, num_epochs=10, device=device, starting_epoch=starting_epoch)
