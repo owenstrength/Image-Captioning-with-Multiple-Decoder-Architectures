@@ -77,7 +77,7 @@ def prepare_for_cider(references, hypotheses):
         refs[i] = [' '.join(r) for r in ref]
         hyps[i] = [' '.join(hyp)]
     return refs, hyps
-def calculate_metrics(encoder_weights, decoder_weights, test_coco_json, test_img_dir, num_test_samples=100):
+def calculate_metrics(encoder_weights, decoder, test_coco_json, test_img_dir, num_test_samples=100):
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     
     # Model initialization
@@ -87,10 +87,8 @@ def calculate_metrics(encoder_weights, decoder_weights, test_coco_json, test_img
     vocab_size = tokenizer.vocab_size
     
     encoder = EncoderCNN(embed_size).to(device)
-    decoder = DecoderRNN(embed_size, hidden_size, vocab_size).to(device)
         
     encoder.load_state_dict(encoder_weights)
-    decoder.load_state_dict(decoder_weights)
     
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -207,14 +205,31 @@ if __name__ == '__main__':
         ('lstm', 'models_checkpoints/encoder-lstm-5.pkl', 'models_checkpoints/decoder-lstm-5.pkl', DecoderLSTM(embed_size, hidden_size, vocab_size).to(device)),
         ('lstm_attention', 'models_checkpoints/encoder-lstm_attention-5.pkl', 'models_checkpoints/decoder-lstm_attention-5.pkl', DecoderLSTMAttention(embed_size, hidden_size, vocab_size).to(device))
              ]
-
+    all_results = []
     for name, encoder_path, decoder_path, decoder in paths:
+        print("\n" + "="*50)
+
+        print(f"\nEvaluating model: {name}")
+        print("="*50)
+
         print(f"Using encoder: {encoder_path}")
         print(f"Using decoder: {decoder_path}")
 
         encoder_weights = torch.load(encoder_path, map_location=device)
         decoder_weights = torch.load(decoder_path, map_location=device)
+
+        decoder.load_state_dict(decoder_weights)
         
 
         print("\nCalculating metrics...")
-        metrics = calculate_metrics(encoder_weights, decoder_weights, test_coco_json, test_img_dir, num_test_samples=100)
+        metrics = calculate_metrics(encoder_weights, decoder, test_coco_json, test_img_dir, num_test_samples=100)
+        all_results.append((name, metrics))
+
+    
+    print("\n" + "="*50)
+    print("\nFinal results:")
+    print("="*50)
+
+    for name, metrics in all_results:
+        print(f"\nModel: {name}")
+        print(metrics)
