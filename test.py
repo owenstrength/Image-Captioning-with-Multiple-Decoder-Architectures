@@ -139,7 +139,7 @@ def calculate_metrics(encoder_weights, decoder, test_coco_json, test_img_dir, nu
                 print("\nExample caption:")
                 print(f"Predicted: {predicted_caption}")
                 print(f"Reference: {' '.join(reference_captions[0])}")
-                visualize_prediction(image, "test", ' '.join(reference_captions[0]), predicted_caption)
+                #visualize_prediction(image, "test", ' '.join(reference_captions[0]), predicted_caption)
                 
         except Exception as e:
             print(f"Error processing image {img_id}: {str(e)}")
@@ -222,7 +222,7 @@ if __name__ == '__main__':
         
 
         print("\nCalculating metrics...")
-        metrics = calculate_metrics(encoder_weights, decoder, test_coco_json, test_img_dir, num_test_samples=100)
+        metrics = calculate_metrics(encoder_weights, decoder, test_coco_json, test_img_dir, num_test_samples=1000)
         all_results.append((name, metrics))
 
     
@@ -232,4 +232,6 @@ if __name__ == '__main__':
 
     for name, metrics in all_results:
         print(f"\nModel: {name}")
-        print(metrics)
+        # Pretty print the metrics
+        for metric, value in metrics.items():
+            print(f"{metric.capitalize()}: {value:.4f}")
