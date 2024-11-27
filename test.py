@@ -141,7 +141,7 @@ def calculate_metrics(encoder_weights, decoder_weights, test_coco_json, test_img
                 print("\nExample caption:")
                 print(f"Predicted: {predicted_caption}")
                 print(f"Reference: {' '.join(reference_captions[0])}")
-                visualize_prediction(image, ' '.join(reference_captions[0]), predicted_caption)
+                visualize_prediction(image, "test", ' '.join(reference_captions[0]), predicted_caption)
                 
         except Exception as e:
             print(f"Error processing image {img_id}: {str(e)}")
@@ -215,10 +215,6 @@ if __name__ == '__main__':
         encoder_weights = torch.load(encoder_path, map_location=device)
         decoder_weights = torch.load(decoder_path, map_location=device)
         
-        encoder = EncoderCNN(embed_size).to(device)
-            
-        encoder.load_state_dict(encoder_weights)
-        decoder.load_state_dict(decoder_weights)
-    
+
         print("\nCalculating metrics...")
-        calculate_metrics(encoder, decoder, name, tokenizer, test_coco_json, test_img_dir, num_test_samples=1000)
+        metrics = calculate_metrics(encoder_weights, decoder_weights, test_coco_json, test_img_dir, num_test_samples=100)

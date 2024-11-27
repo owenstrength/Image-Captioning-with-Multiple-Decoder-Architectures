@@ -2,3 +2,7 @@ coco_dataset/*
 checkpoints/*
 nohup.out
 __pycache__/*
+
+results/*
+
+models/__pycache__
