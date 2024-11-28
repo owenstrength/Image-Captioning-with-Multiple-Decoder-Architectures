@@ -1,6 +1,7 @@
 coco_dataset/*
 checkpoints/*
 nohup.out
+lstm_attention.out
 __pycache__/*
 
 results/*

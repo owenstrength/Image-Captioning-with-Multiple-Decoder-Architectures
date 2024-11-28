@@ -77,7 +77,11 @@ def prepare_for_cider(references, hypotheses):
         refs[i] = [' '.join(r) for r in ref]
         hyps[i] = [' '.join(hyp)]
     return refs, hyps
+
 def calculate_metrics(encoder_weights, decoder, test_coco_json, test_img_dir, num_test_samples=100):
+    """
+    Calculate BLEU, METEOR, CIDEr, and ROUGE scores for the model
+    """
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     
     # Model initialization
@@ -181,24 +185,26 @@ def calculate_metrics(encoder_weights, decoder, test_coco_json, test_img_dir, nu
     }
 
 if __name__ == '__main__':
-    encoder_path = 'checkpoints/encoder-50.pkl'  # Path to encoder weights
-    decoder_path = 'checkpoints/decoder-50.pkl'  # Path to decoder weights
+    # test data
     test_coco_json = 'coco_dataset/annotations/captions_val2017.json'
     test_img_dir = 'coco_dataset/val2017'
 
+    # Download NLTK data
     try:
         nltk.download('punkt')
         nltk.download('wordnet') # For METEOR
     except:
         pass
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
 
+    # same hyperparameters as in train.py
     embed_size = 256
     hidden_size = 512
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     vocab_size = tokenizer.vocab_size
 
+    # if you have another model add it here
     paths = [
         ('rnn', 'models_checkpoints/encoder-rnn-5.pkl', 'models_checkpoints/decoder-rnn-5.pkl', DecoderRNN(embed_size, hidden_size, vocab_size).to(device)),
         ('gru', 'models_checkpoints/encoder-gru-5.pkl', 'models_checkpoints/decoder-gru-5.pkl', DecoderGRU(embed_size, hidden_size, vocab_size).to(device)),
