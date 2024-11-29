@@ -5,5 +5,5 @@ lstm_attention.out
 __pycache__/*
 
 results/*
-
+report_samples/*
 models/__pycache__

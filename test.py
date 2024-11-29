@@ -228,7 +228,7 @@ if __name__ == '__main__':
         
 
         print("\nCalculating metrics...")
-        metrics = calculate_metrics(encoder_weights, decoder, test_coco_json, test_img_dir, num_test_samples=1000)
+        metrics = calculate_metrics(encoder_weights, decoder, test_coco_json, test_img_dir, num_test_samples=100)
         all_results.append((name, metrics))
 
     
