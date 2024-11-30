@@ -209,7 +209,6 @@ if __name__ == '__main__':
         ('rnn', 'models_checkpoints/encoder-rnn-5.pkl', 'models_checkpoints/decoder-rnn-5.pkl', DecoderRNN(embed_size, hidden_size, vocab_size).to(device)),
         ('gru', 'models_checkpoints/encoder-gru-5.pkl', 'models_checkpoints/decoder-gru-5.pkl', DecoderGRU(embed_size, hidden_size, vocab_size).to(device)),
         ('lstm', 'models_checkpoints/encoder-lstm-5.pkl', 'models_checkpoints/decoder-lstm-5.pkl', DecoderLSTM(embed_size, hidden_size, vocab_size).to(device)),
-        ('lstm_attention', 'models_checkpoints/encoder-lstm_attention-5.pkl', 'models_checkpoints/decoder-lstm_attention-5.pkl', DecoderLSTMAttention(embed_size, hidden_size, vocab_size).to(device))
              ]
     all_results = []
     for name, encoder_path, decoder_path, decoder in paths:
