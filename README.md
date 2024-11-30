@@ -42,6 +42,8 @@ pip install -r requirements.txt
 ### Dataset
 The project uses the COCO 2017 dataset. Download it from [COCO website](https://cocodataset.org/#download) and place it in the `coco_dataset` directory.
 
+We have also created a shell file that does this for you. Run `./setup_coco_caption_dataset.sh` to download the dataset.
+
 ## Files Description
 
 ### 1. models/EncoderCNN.py
