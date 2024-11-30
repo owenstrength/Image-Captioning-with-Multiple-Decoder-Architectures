@@ -1,6 +1,7 @@
 # Image Captioning with Multiple Decoder Architectures
 [Repo](https://github.com/owenstrength/image_captioning)
-[Paper](./'Image Captioning with Multiple Decoder Architectures.pdf')
+[Paper](./Image%20Captioning%20with%20Multiple%20Decoder%20Architectures.pdf)
+
 This project implements an image captioning system using various decoder architectures (RNN, GRU, and LSTM) on the COCO 2017 dataset. The system uses a pre-trained ResNet-50 as the encoder and different recurrent architectures for caption generation.
 
 ## Project Structure
