@@ -1,6 +1,6 @@
 # Image Captioning with Multiple Decoder Architectures
 
-This project implements an image captioning system using various decoder architectures (RNN, GRU, LSTM, and LSTM with Attention) on the COCO 2017 dataset. The system uses a pre-trained ResNet-50 as the encoder and different recurrent architectures for caption generation.
+This project implements an image captioning system using various decoder architectures (RNN, GRU, and LSTM) on the COCO 2017 dataset. The system uses a pre-trained ResNet-50 as the encoder and different recurrent architectures for caption generation.
 
 ## Project Structure
 ```
@@ -59,7 +59,6 @@ Contains different decoder architectures for caption generation.
 - `DecoderRNN`: Basic RNN decoder
 - `DecoderGRU`: GRU-based decoder
 - `DecoderLSTM`: LSTM-based decoder
-- `DecoderLSTMAttention`: LSTM decoder with attention mechanism
 
 Each decoder class implements:
 - `forward()`: Training forward pass
@@ -101,7 +100,6 @@ Evaluation script for trained models.
    - RNN: Basic recurrent neural network
    - GRU: Gated Recurrent Unit
    - LSTM: Long Short-Term Memory
-   - LSTM with Attention: LSTM with visual attention mechanism
 
 ## Usage
 
@@ -122,7 +120,7 @@ Checkpoints are saved in the following format:
 - Encoder: `checkpoints/encoder-{model_type}-{epoch}.pkl`
 - Decoder: `checkpoints/decoder-{model_type}-{epoch}.pkl`
 
-where `model_type` is one of: ['rnn', 'gru', 'lstm', 'lstm_attention']
+where `model_type` is one of: ['rnn', 'gru', 'lstm']
 
 ## Results
 Results are saved in:
