@@ -168,9 +168,3 @@ if __name__ == '__main__':
     name = 'lstm'
 
     train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=num_epochs, device=device)
-
-    # LSTM with Attention
-    decoder = DecoderLSTMAttention(embed_size, hidden_size, vocab_size).to(device)
-    name = 'lstm_attention'
-
-    train_model(encoder, decoder, data_loader, tokenizer, name, num_epochs=num_epochs, device=device)
