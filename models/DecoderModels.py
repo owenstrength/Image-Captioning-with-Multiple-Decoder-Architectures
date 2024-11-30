@@ -103,7 +103,10 @@ class DecoderLSTM(nn.Module):
             inputs = self.embed(predicted_idx)
             inputs = inputs.unsqueeze(1)
         return res
-    
+
+# this was experimental and did not end up working. but we left the model here.
+# based on Show, Attend and Tell: Neural Image Caption Generation with Visual Attention 2015 paper
+
 class DecoderLSTMAttention(nn.Module):
     def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
         super(DecoderLSTMAttention, self).__init__()
