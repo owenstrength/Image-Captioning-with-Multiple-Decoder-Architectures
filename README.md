@@ -4,6 +4,8 @@
 
 This project implements an image captioning system using various decoder architectures (RNN, GRU, and LSTM) on the COCO 2017 dataset. The system uses a pre-trained ResNet-50 as the encoder and different recurrent architectures for caption generation.
 
+![Sample Result](report_samples/sample_4.png)
+
 ## Project Structure
 ```
 ├── coco_dataset/
@@ -47,6 +49,8 @@ The project uses the COCO 2017 dataset. Download it from [COCO website](https://
 We have also created a shell file that does this for you. Run `./setup_coco_caption_dataset.sh` to download the dataset.
 
 ## Files Description
+
+![Architecture](plots/neural_arch_2.png)
 
 ### 1. models/EncoderCNN.py
 Implements the encoder using a pre-trained ResNet-50 model.
