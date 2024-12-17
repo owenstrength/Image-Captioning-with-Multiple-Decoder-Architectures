@@ -48,9 +48,20 @@ The project uses the COCO 2017 dataset. Download it from [COCO website](https://
 
 We have also created a shell file that does this for you. Run `./setup_coco_caption_dataset.sh` to download the dataset.
 
-## Files Description
+## Model Architectures
 
 ![Architecture](plots/neural_arch_2.png)
+
+1. **Encoder**:
+   - Pre-trained ResNet-50
+   - Feature dimension: 2048 → embed_size
+
+2. **Decoders**:
+   - RNN: Basic recurrent neural network
+   - GRU: Gated Recurrent Unit
+   - LSTM: Long Short-Term Memory
+
+## Files Description
 
 ### 1. models/EncoderCNN.py
 Implements the encoder using a pre-trained ResNet-50 model.
@@ -97,17 +108,6 @@ Evaluation script for trained models.
   - CIDEr
   - ROUGE
 - `visualize_prediction()`: Creates visualization of predictions
-
-## Model Architectures
-
-1. **Encoder**:
-   - Pre-trained ResNet-50
-   - Feature dimension: 2048 → embed_size
-
-2. **Decoders**:
-   - RNN: Basic recurrent neural network
-   - GRU: Gated Recurrent Unit
-   - LSTM: Long Short-Term Memory
 
 ## Usage
 
